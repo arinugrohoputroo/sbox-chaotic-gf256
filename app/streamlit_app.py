@@ -85,8 +85,8 @@ def load_aes_benchmark() -> dict[str, float]:
     return evaluate_aes_sbox().as_dict()
 
 
-def resolve_params(use_tuned: bool, r_manual: float, x0_manual: float) -> tuple[float, float]:
-    if use_tuned:
+def resolve_params(use_default: bool, r_manual: float, x0_manual: float) -> tuple[float, float]:
+    if use_default:
         return TUNED_R, TUNED_X0
     return r_manual, x0_manual
 
@@ -101,7 +101,6 @@ def render_hero(passed: int, total: int) -> None:
             <p>Konstruksi S-box 8×8 via Logistic Map + GF(2⁸) inverse + affine transform.
             Pengujian NL, SAC, BIC-NL, BIC-SAC, LAP, dan DAP.</p>
             <span class="pill {badge}">{label}</span>
-            <span class="pill pill-good">Optimal: r={TUNED_R}, x0={TUNED_X0}</span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -167,16 +166,11 @@ def sbox_to_csv(sbox: list[int]) -> str:
 
 # --- Sidebar ---
 with st.sidebar:
-    st.header("⚙️ Parameter")
-    use_tuned = st.toggle(
-        "Parameter optimal (tuned)",
-        value=True,
-        help=f"Hasil grid search: r={TUNED_R}, x0={TUNED_X0}",
-    )
+    st.header("Parameter")
+    use_default = st.toggle("Parameter default", value=True)
 
-    if use_tuned:
+    if use_default:
         r_manual, x0_manual = TUNED_R, TUNED_X0
-        st.success(f"**r** = `{TUNED_R}`  ·  **x₀** = `{TUNED_X0}`")
     else:
         r_manual = st.slider("Parameter r", min_value=3.57, max_value=4.0, value=TUNED_R, step=0.01)
         x0_manual = st.number_input(
@@ -188,17 +182,15 @@ with st.sidebar:
             format="%.9f",
         )
 
-    st.divider()
-    st.caption("Perhitungan LAP ~15–20 detik saat pertama kali. Hasil di-cache per parameter.")
-    regenerate = st.button("🔄 Generate S-box", type="primary", width="stretch")
+    regenerate = st.button("Hitung S-box", type="primary", width="stretch")
 
-r, x0 = resolve_params(use_tuned, r_manual, x0_manual)
+r, x0 = resolve_params(use_default, r_manual, x0_manual)
 param_key = (round(r, 9), round(x0, 9))
 
-needs_build = regenerate or "sbox" not in st.session_state
+needs_build = regenerate or "sbox" not in st.session_state or st.session_state.get("param_key") != param_key
 
 if needs_build:
-    with st.spinner("Membangun S-box dan menghitung metrik kriptografi..."):
+    with st.spinner("Menghitung S-box dan metrik kriptografi..."):
         sbox, meta, metrics, sac_matrix = load_sbox_result(r, x0)
         st.session_state.update(
             param_key=param_key,
@@ -209,8 +201,6 @@ if needs_build:
             r=r,
             x0=x0,
         )
-elif st.session_state.get("param_key") != param_key:
-    st.warning("Parameter berubah. Klik **Generate S-box** di sidebar untuk memperbarui hasil.")
 
 sbox = st.session_state["sbox"]
 meta = st.session_state["meta"]
@@ -292,6 +282,9 @@ with tab_method:
         3. **Multiplicative inverse** — operasi di GF(2⁸) dengan polinom AES `0x11B`
         4. **Affine transform** — `S(x) = M·x ⊕ c` di GF(2)
 
+        ### Parameter
+        **r** = 4.0 · **x₀** = 0.5
+
         ### Target kualitas (8-bit S-box)
         | Metrik | Target |
         |--------|--------|
@@ -299,14 +292,9 @@ with tab_method:
         | SAC | ≈ 0.5 |
         | BIC-SAC | Joint prob ≈ 0.25 |
         | LAP / DAP | Semakin kecil semakin baik |
-
-        ### Parameter optimal
-        Hasil grid search penuh: **`r = 4.0`**, **`x₀ = 0.5`** — metrik setara AES S-box.
-        Jalankan `python tune_parameters.py` untuk mencari kombinasi lain.
         """
     )
 
-    with st.expander("Detail teknis affine transform"):
-        st.write("Matriks affine (GF(2)):")
-        st.dataframe(pd.DataFrame(meta["matrix"]), width="stretch")
-        st.write(f"Konstanta affine: `0x{meta['constant']:02X}` ({meta['constant']})")
+    st.subheader("Affine transform")
+    st.dataframe(pd.DataFrame(meta["matrix"]), width="stretch")
+    st.write(f"Konstanta affine: `0x{meta['constant']:02X}` ({meta['constant']})")

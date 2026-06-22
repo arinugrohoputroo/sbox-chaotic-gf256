@@ -19,7 +19,6 @@ src/
   metrics.py        # NL, SAC, BIC-NL, BIC-SAC, LAP, DAP
 app/
   streamlit_app.py  # Demo interaktif
-tune_parameters.py  # Grid search parameter r dan x0
 ```
 
 ## Metrik Kriptografi
@@ -33,4 +32,4 @@ tune_parameters.py  # Grid search parameter r dan x0
 | LAP | Linear Approximation Probability |
 | DAP | Differential Approximation Probability |
 
-Parameter optimal hasil grid search: **r = 4.0**, **x0 = 0.5** — 10/10 metrik setara AES S-box.
+Parameter: **r = 4.0**, **x0 = 0.5** — 10/10 metrik setara AES S-box.
